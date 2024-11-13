@@ -97,28 +97,7 @@
         <Component class="javax.swing.JComboBox" name="cmbKota">
           <Properties>
             <Property name="model" type="javax.swing.ComboBoxModel" editor="org.netbeans.modules.form.editors2.ComboBoxModelEditor">
-              <StringArray count="20">
-                <StringItem index="0" value="Jakarta"/>
-                <StringItem index="1" value="Surabaya"/>
-                <StringItem index="2" value="Bandung"/>
-                <StringItem index="3" value="Medan"/>
-                <StringItem index="4" value="Yogyakarta"/>
-                <StringItem index="5" value="Makassar"/>
-                <StringItem index="6" value="Semarang"/>
-                <StringItem index="7" value="Malang"/>
-                <StringItem index="8" value="Palembang"/>
-                <StringItem index="9" value="Denpasar"/>
-                <StringItem index="10" value="Tangerang"/>
-                <StringItem index="11" value="Batam"/>
-                <StringItem index="12" value="Bali"/>
-                <StringItem index="13" value="Banjarmasin"/>
-                <StringItem index="14" value="Ambon"/>
-                <StringItem index="15" value="Makasar"/>
-                <StringItem index="16" value="Pontianak"/>
-                <StringItem index="17" value="Solo"/>
-                <StringItem index="18" value="Cirebon"/>
-                <StringItem index="19" value="Samarinda"/>
-              </StringArray>
+              <StringArray count="0"/>
             </Property>
           </Properties>
           <AuxValues>
