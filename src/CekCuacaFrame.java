@@ -1,20 +1,30 @@
+import java.awt.Component;
 import java.awt.Image;
 import java.awt.event.ItemEvent;
 import java.awt.event.ItemListener;
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.Scanner;
 import javax.swing.ImageIcon;
+import javax.swing.JFileChooser;
+import javax.swing.JLabel;
 import javax.swing.JOptionPane;
+import javax.swing.JTable;
+import javax.swing.SwingConstants;
+import javax.swing.table.DefaultTableCellRenderer;
+import javax.swing.table.DefaultTableModel;
 import org.json.JSONObject;
 
 public class CekCuacaFrame extends javax.swing.JFrame {
     private String apiKey = "22c6e9456b03845430cf45bdb17b616a";
+    DefaultTableModel model = new DefaultTableModel();
 
-    /**
-     * Creates new form CekCuacaFrame
-     */
     public CekCuacaFrame() {
         initComponents();
         
@@ -27,8 +37,32 @@ public class CekCuacaFrame extends javax.swing.JFrame {
                 }
             }
         });
+              
+        model.addColumn("Kota");
+        model.addColumn("Cuaca");
+        model.addColumn("Suhu (°C)");
+        model.addColumn("Ikon");
+
+        table.setModel(model);
+
+        table.getColumnModel().getColumn(3).setCellRenderer(new DefaultTableCellRenderer() {
+            @Override
+            protected void setValue(Object value) {
+                if (value instanceof ImageIcon) {
+                    // Set the icon to the cell and clear the text
+                    setIcon((ImageIcon) value);
+                    setText(""); // Clear the text in the cell
+                } else {
+                    super.setValue(value);
+                }
+            }
+        });
+
+        
+        table.setRowHeight(50);
+        table.getColumnModel().getColumn(3).setPreferredWidth(50);
     }
-    
+        
     private void cekCuaca(String kota) {
         try {
             String urlStr = "http://api.openweathermap.org/data/2.5/weather?q=" + kota + "&appid=" + apiKey + "&units=metric";
@@ -48,46 +82,27 @@ public class CekCuacaFrame extends javax.swing.JFrame {
             JSONObject json = new JSONObject(content.toString());
             String kondisi = json.getJSONArray("weather").getJSONObject(0).getString("main");
             double suhu = json.getJSONObject("main").getDouble("temp");
+            String iconCode = json.getJSONArray("weather").getJSONObject(0).getString("icon"); 
 
             labelCuaca.setText("Cuaca di " + kota + ": " + kondisi + ", Suhu: " + suhu + "°C");
 
-            int labelWidth = 199;
-            int labelHeight = 172;
-            ImageIcon icon = null;
-            switch (kondisi.toLowerCase()) {
-                case "clear":
-                    icon = new ImageIcon("icon/sunny.png"); // Path for clear weather
-                    break;
-                case "clouds":
-                    icon = new ImageIcon("icon/clouds.png"); // Path for cloudy weather
-                    break;
-                case "rain":
-                    icon = new ImageIcon("icon/rain.png"); // Path for rainy weather
-                    break;
-                case "thunderstorm":
-                    icon = new ImageIcon("icon/thunderstorm.png"); // Path for thunderstorm
-                    break;
-                case "fog":
-                case "mist":
-                    icon = new ImageIcon("icon/fog.png"); // Path for foggy weather
-                    break;
-                case "haze":
-                    icon = new ImageIcon("icon/haze.png"); // Path for hazy weather
-                    break;
-                default:
-                    icon = new ImageIcon("default.png"); // Default icon
-                    break;
-            }
+            String iconUrl = "http://openweathermap.org/img/wn/" + iconCode + "@2x.png";
+            ImageIcon icon = new ImageIcon(new URL(iconUrl));
+            Image img = icon.getImage().getScaledInstance(50, 50, Image.SCALE_SMOOTH); 
+            ImageIcon resizedIcon = new ImageIcon(img);
 
-            if (icon != null) {
-                Image img = icon.getImage();
-                Image scaledImg = img.getScaledInstance(labelWidth, labelHeight, Image.SCALE_SMOOTH);
-                labelGambar.setIcon(new ImageIcon(scaledImg));
-            }
+            labelGambar.setIcon(resizedIcon);
 
             if (!isKotaExistInComboBox(kota)) {
                 cmbKota.addItem(kota);
             }
+
+            model.addRow(new Object[]{
+                kota, 
+                kondisi, 
+                suhu, 
+                resizedIcon 
+            });
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -95,14 +110,69 @@ public class CekCuacaFrame extends javax.swing.JFrame {
         }
     }
 
-        private boolean isKotaExistInComboBox(String kota) {
+    private boolean isKotaExistInComboBox(String kota) {
         for (int i = 0; i < cmbKota.getItemCount(); i++) {
             if (cmbKota.getItemAt(i).equalsIgnoreCase(kota)) {
-                return true;
+                return true;  
             }
         }
-        return false;
+        return false;  
     }
+   
+    private void loadTableFromCSV(JTable table, String filePath) {
+        try (Scanner scanner = new Scanner(new File(filePath))) {
+            DefaultTableModel model = new DefaultTableModel();
+            table.setModel(model);
+
+            if (scanner.hasNextLine()) {
+                String headerLine = scanner.nextLine();
+                String[] headers = headerLine.split(",");
+                for (String header : headers) {
+                    model.addColumn(header);
+                }
+            }
+
+            while (scanner.hasNextLine()) {
+                String dataLine = scanner.nextLine();
+                String[] rowData = dataLine.split(",");
+                model.addRow(rowData);
+            }
+
+            JOptionPane.showMessageDialog(null, "Data loaded from " + filePath);
+        } catch (Exception e) {
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(null, "Error loading data from file.");
+        }
+    }
+    
+    private void saveTableToCSV(String filePath) {
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(filePath))) {
+            DefaultTableModel model = (DefaultTableModel) table.getModel();
+
+            writer.write("Kota;Cuaca;Suhu;Ikon");
+            writer.newLine();
+
+            for (int i = 0; i < model.getRowCount(); i++) {
+                String kota = model.getValueAt(i, 0).toString();
+                String cuaca = model.getValueAt(i, 1).toString();
+                String suhu = model.getValueAt(i, 2).toString();
+                String ikon = model.getValueAt(i, 3).toString(); 
+
+                writer.write(kota + ";");
+                writer.write(cuaca + ";");
+                writer.write(suhu + ";");
+                writer.write(ikon);  
+                writer.newLine();
+            }
+
+            JOptionPane.showMessageDialog(null, "Data berhasil disimpan ke file: " + filePath);
+        } catch (IOException e) {
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(null, "Terjadi kesalahan saat menyimpan data.");
+        }
+    }
+    
+
 
 
     /**
@@ -122,6 +192,11 @@ public class CekCuacaFrame extends javax.swing.JFrame {
         labelGambar = new javax.swing.JLabel();
         labelCuaca = new javax.swing.JLabel();
         txtKota = new javax.swing.JTextField();
+        jScrollPane1 = new javax.swing.JScrollPane();
+        table = new javax.swing.JTable();
+        btnSave = new javax.swing.JButton();
+        btnLoad = new javax.swing.JButton();
+        btnClear = new javax.swing.JButton();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
         setTitle("Aplikasi Cek Cuaca");
@@ -149,10 +224,44 @@ public class CekCuacaFrame extends javax.swing.JFrame {
         );
         jPanel2Layout.setVerticalGroup(
             jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addComponent(labelGambar, javax.swing.GroupLayout.DEFAULT_SIZE, 172, Short.MAX_VALUE)
+            .addComponent(labelGambar, javax.swing.GroupLayout.PREFERRED_SIZE, 166, javax.swing.GroupLayout.PREFERRED_SIZE)
         );
 
         labelCuaca.setText("jLabel2");
+
+        table.setModel(new javax.swing.table.DefaultTableModel(
+            new Object [][] {
+                {null, null, null, null},
+                {null, null, null, null},
+                {null, null, null, null},
+                {null, null, null, null}
+            },
+            new String [] {
+                "Title 1", "Title 2", "Title 3", "Title 4"
+            }
+        ));
+        jScrollPane1.setViewportView(table);
+
+        btnSave.setText("Save");
+        btnSave.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                btnSaveActionPerformed(evt);
+            }
+        });
+
+        btnLoad.setText("Load");
+        btnLoad.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                btnLoadActionPerformed(evt);
+            }
+        });
+
+        btnClear.setText("Clear");
+        btnClear.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                btnClearActionPerformed(evt);
+            }
+        });
 
         javax.swing.GroupLayout jPanel1Layout = new javax.swing.GroupLayout(jPanel1);
         jPanel1.setLayout(jPanel1Layout);
@@ -161,47 +270,73 @@ public class CekCuacaFrame extends javax.swing.JFrame {
             .addGroup(jPanel1Layout.createSequentialGroup()
                 .addGap(42, 42, 42)
                 .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addGroup(jPanel1Layout.createSequentialGroup()
+                        .addGap(10, 10, 10)
+                        .addComponent(btnClear))
+                    .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                        .addComponent(jPanel2, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                        .addComponent(jLabel1)
+                        .addGroup(jPanel1Layout.createSequentialGroup()
+                            .addComponent(txtKota, javax.swing.GroupLayout.PREFERRED_SIZE, 144, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                            .addComponent(jButton1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)))
                     .addComponent(labelCuaca)
                     .addGroup(jPanel1Layout.createSequentialGroup()
-                        .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
-                            .addComponent(jPanel2, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                            .addComponent(jLabel1)
-                            .addGroup(jPanel1Layout.createSequentialGroup()
-                                .addComponent(txtKota, javax.swing.GroupLayout.PREFERRED_SIZE, 144, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                .addComponent(jButton1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)))
+                        .addComponent(btnSave)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(btnLoad)))
+                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addGroup(jPanel1Layout.createSequentialGroup()
                         .addGap(40, 40, 40)
-                        .addComponent(cmbKota, javax.swing.GroupLayout.PREFERRED_SIZE, 140, javax.swing.GroupLayout.PREFERRED_SIZE)))
-                .addContainerGap(152, Short.MAX_VALUE))
+                        .addComponent(cmbKota, javax.swing.GroupLayout.PREFERRED_SIZE, 140, javax.swing.GroupLayout.PREFERRED_SIZE))
+                    .addGroup(jPanel1Layout.createSequentialGroup()
+                        .addGap(26, 26, 26)
+                        .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                .addContainerGap(291, Short.MAX_VALUE))
         );
         jPanel1Layout.setVerticalGroup(
             jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(jPanel1Layout.createSequentialGroup()
+            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel1Layout.createSequentialGroup()
                 .addGap(34, 34, 34)
                 .addComponent(jLabel1)
-                .addGap(18, 18, 18)
-                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                    .addComponent(cmbKota, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(jButton1)
-                    .addComponent(txtKota, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(jPanel2, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                .addComponent(labelCuaca)
-                .addGap(51, 51, 51))
+                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addGroup(jPanel1Layout.createSequentialGroup()
+                        .addGap(18, 18, 18)
+                        .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                            .addComponent(cmbKota, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addComponent(jButton1)
+                            .addComponent(txtKota, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(jPanel2, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addGap(29, 29, 29)
+                        .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                            .addComponent(btnSave)
+                            .addComponent(btnLoad))
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                        .addComponent(btnClear)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                        .addComponent(labelCuaca)
+                        .addGap(51, 51, 51))
+                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel1Layout.createSequentialGroup()
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 96, Short.MAX_VALUE)
+                        .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addContainerGap())))
         );
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
         getContentPane().setLayout(layout);
         layout.setHorizontalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addComponent(jPanel1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
+                .addComponent(jPanel1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGap(0, 0, Short.MAX_VALUE))
         );
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(layout.createSequentialGroup()
+                .addContainerGap()
                 .addComponent(jPanel1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addGap(0, 5, Short.MAX_VALUE))
+                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
         );
 
         pack();
@@ -216,6 +351,40 @@ public class CekCuacaFrame extends javax.swing.JFrame {
             cekCuaca(kota);
         }
     }//GEN-LAST:event_jButton1ActionPerformed
+
+    private void btnSaveActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnSaveActionPerformed
+        JFileChooser fileChooser = new JFileChooser();
+int returnValue = fileChooser.showSaveDialog(null);
+if (returnValue == JFileChooser.APPROVE_OPTION) {
+    File file = fileChooser.getSelectedFile();
+    String filePath = file.getAbsolutePath();
+    if (!filePath.endsWith(".csv")) {
+        filePath += ".csv";  // Add ".csv" extension if it's missing
+    }
+    saveTableToCSV(filePath);  // Pass filePath as a parameter
+}
+
+    }//GEN-LAST:event_btnSaveActionPerformed
+
+    private void btnLoadActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnLoadActionPerformed
+        JFileChooser fileChooser = new JFileChooser();
+        int returnValue = fileChooser.showOpenDialog(null);
+        if (returnValue == JFileChooser.APPROVE_OPTION) {
+            File file = fileChooser.getSelectedFile();
+            String filePath = file.getAbsolutePath();
+            loadTableFromCSV(table, filePath);  
+        }
+    }//GEN-LAST:event_btnLoadActionPerformed
+
+    private void btnClearActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnClearActionPerformed
+        DefaultTableModel model = (DefaultTableModel) table.getModel();
+        model.setRowCount(0); 
+        
+        txtKota.setText("");  
+        
+        labelCuaca.setText(""); 
+        labelGambar.setText("");
+    }//GEN-LAST:event_btnClearActionPerformed
 
     /**
      * @param args the command line arguments
@@ -253,13 +422,18 @@ public class CekCuacaFrame extends javax.swing.JFrame {
     }
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
+    private javax.swing.JButton btnClear;
+    private javax.swing.JButton btnLoad;
+    private javax.swing.JButton btnSave;
     private javax.swing.JComboBox<String> cmbKota;
     private javax.swing.JButton jButton1;
     private javax.swing.JLabel jLabel1;
     private javax.swing.JPanel jPanel1;
     private javax.swing.JPanel jPanel2;
+    private javax.swing.JScrollPane jScrollPane1;
     private javax.swing.JLabel labelCuaca;
     private javax.swing.JLabel labelGambar;
+    private javax.swing.JTable table;
     private javax.swing.JTextField txtKota;
     // End of variables declaration//GEN-END:variables
 }
