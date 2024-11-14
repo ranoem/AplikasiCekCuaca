@@ -70,8 +70,7 @@ public class CekCuacaFrame extends javax.swing.JFrame {
                 }
             }
         });
-
-        
+   
         table.setRowHeight(50);
         table.getColumnModel().getColumn(3).setPreferredWidth(50);
     }
@@ -139,16 +138,25 @@ public class CekCuacaFrame extends javax.swing.JFrame {
 
             if (scanner.hasNextLine()) {
                 String headerLine = scanner.nextLine();
-                String[] headers = headerLine.split(",");
+                String delimiter = headerLine.contains(",") ? "\\s*,\\s*" : "\\s*;\\s*"; 
+                String[] headers = headerLine.split(delimiter);
                 for (String header : headers) {
-                    model.addColumn(header);
+                    model.addColumn(header.trim());  
                 }
-            }
 
-            while (scanner.hasNextLine()) {
-                String dataLine = scanner.nextLine();
-                String[] rowData = dataLine.split(",");
-                model.addRow(rowData);
+                while (scanner.hasNextLine()) {
+                    String dataLine = scanner.nextLine();
+                    String[] rowData = dataLine.split(delimiter);
+
+                    if (rowData.length == headers.length) {
+                        for (int i = 0; i < rowData.length; i++) {
+                            rowData[i] = rowData[i].trim(); 
+                        }
+                        model.addRow(rowData);
+                    } else {
+                        System.out.println("Jumlah kolom tidak cocok di baris: " + dataLine);
+                    }
+                }
             }
 
             JOptionPane.showMessageDialog(null, "Data loaded from " + filePath);
@@ -184,9 +192,6 @@ public class CekCuacaFrame extends javax.swing.JFrame {
             JOptionPane.showMessageDialog(null, "Terjadi kesalahan saat menyimpan data.");
         }
     }
-    
-
-
 
     /**
      * This method is called from within the constructor to initialize the form.
@@ -400,16 +405,15 @@ public class CekCuacaFrame extends javax.swing.JFrame {
 
     private void btnSaveActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnSaveActionPerformed
         JFileChooser fileChooser = new JFileChooser();
-int returnValue = fileChooser.showSaveDialog(null);
-if (returnValue == JFileChooser.APPROVE_OPTION) {
-    File file = fileChooser.getSelectedFile();
-    String filePath = file.getAbsolutePath();
-    if (!filePath.endsWith(".csv")) {
-        filePath += ".csv";  // Add ".csv" extension if it's missing
-    }
-    saveTableToCSV(filePath);  // Pass filePath as a parameter
-}
-
+        int returnValue = fileChooser.showSaveDialog(null);
+        if (returnValue == JFileChooser.APPROVE_OPTION) {
+            File file = fileChooser.getSelectedFile();
+            String filePath = file.getAbsolutePath();
+            if (!filePath.endsWith(".csv")) {
+                filePath += ".csv"; 
+            }
+            saveTableToCSV(filePath); 
+        }
     }//GEN-LAST:event_btnSaveActionPerformed
 
     private void btnLoadActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnLoadActionPerformed
