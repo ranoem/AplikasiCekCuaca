@@ -12,6 +12,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.Arrays;
 import java.util.Scanner;
 import javax.swing.ImageIcon;
 import javax.swing.JFileChooser;
@@ -55,11 +56,10 @@ public class CekCuacaFrame extends javax.swing.JFrame {
         model.addColumn("Kota");
         model.addColumn("Cuaca");
         model.addColumn("Suhu (°C)");
-        model.addColumn("Ikon");
 
         table.setModel(model);
 
-        table.getColumnModel().getColumn(3).setCellRenderer(new DefaultTableCellRenderer() {
+        table.getColumnModel().getColumn(2).setCellRenderer(new DefaultTableCellRenderer() {
             @Override
             protected void setValue(Object value) {
                 if (value instanceof ImageIcon) {
@@ -72,7 +72,7 @@ public class CekCuacaFrame extends javax.swing.JFrame {
         });
    
         table.setRowHeight(50);
-        table.getColumnModel().getColumn(3).setPreferredWidth(50);
+        table.getColumnModel().getColumn(2).setPreferredWidth(50);
     }
         
     private void cekCuaca(String kota) {
@@ -112,8 +112,7 @@ public class CekCuacaFrame extends javax.swing.JFrame {
             model.addRow(new Object[]{
                 kota, 
                 kondisi, 
-                suhu, 
-                resizedIcon 
+                suhu
             });
 
         } catch (Exception e) {
@@ -138,51 +137,48 @@ public class CekCuacaFrame extends javax.swing.JFrame {
 
             if (scanner.hasNextLine()) {
                 String headerLine = scanner.nextLine();
-                String delimiter = headerLine.contains(",") ? "\\s*,\\s*" : "\\s*;\\s*"; 
+                String delimiter = headerLine.contains(",") ? "\\s*,\\s*" : "\\s*;\\s*";
                 String[] headers = headerLine.split(delimiter);
+
                 for (String header : headers) {
-                    model.addColumn(header.trim());  
+                    model.addColumn(header.trim());
                 }
 
                 while (scanner.hasNextLine()) {
                     String dataLine = scanner.nextLine();
                     String[] rowData = dataLine.split(delimiter);
 
-                    if (rowData.length == headers.length) {
-                        for (int i = 0; i < rowData.length; i++) {
-                            rowData[i] = rowData[i].trim(); 
-                        }
-                        model.addRow(rowData);
+                    if (rowData.length <= headers.length) {
+                        model.addRow(Arrays.copyOf(rowData, headers.length));
                     } else {
-                        System.out.println("Jumlah kolom tidak cocok di baris: " + dataLine);
+                        System.out.println("Jumlah kolom berlebih di baris: " + dataLine);
                     }
                 }
             }
 
-            JOptionPane.showMessageDialog(null, "Data loaded from " + filePath);
+            JOptionPane.showMessageDialog(null, "Data berhasil dimuat dari " + filePath);
         } catch (Exception e) {
             e.printStackTrace();
-            JOptionPane.showMessageDialog(null, "Error loading data from file.");
+            JOptionPane.showMessageDialog(null, "Terjadi kesalahan saat memuat data dari file.");
         }
     }
+
     
     private void saveTableToCSV(String filePath) {
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(filePath))) {
             DefaultTableModel model = (DefaultTableModel) table.getModel();
 
-            writer.write("Kota;Cuaca;Suhu;Ikon");
+            writer.write("Kota;Cuaca;Suhu");
             writer.newLine();
 
             for (int i = 0; i < model.getRowCount(); i++) {
                 String kota = model.getValueAt(i, 0).toString();
                 String cuaca = model.getValueAt(i, 1).toString();
                 String suhu = model.getValueAt(i, 2).toString();
-                String ikon = model.getValueAt(i, 3).toString(); 
 
                 writer.write(kota + ";");
                 writer.write(cuaca + ";");
                 writer.write(suhu + ";");
-                writer.write(ikon);  
                 writer.newLine();
             }
 
@@ -433,7 +429,7 @@ public class CekCuacaFrame extends javax.swing.JFrame {
         txtKota.setText("");  
         
         labelCuaca.setText(""); 
-        labelGambar.setText("");
+        labelGambar.setIcon(null);
     }//GEN-LAST:event_btnClearActionPerformed
 
     /**
